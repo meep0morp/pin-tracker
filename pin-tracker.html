@@ -398,9 +398,14 @@ body {
 .s-row.cur { background: var(--g050); }
 .s-wk      { font-size: 10px; color: var(--ink4); padding-top: 1px; }
 .s-pin     { font-size: 12px; }
-.s-pin.done   { color: var(--g400); }
-.s-pin.active { color: var(--g700); font-weight: 600; }
-.s-pin.future { color: var(--ink3); }
+.s-pin.confirmed { color: var(--g700); font-weight: 600; }  /* explicitly marked */
+.s-pin.done      { color: var(--g300); }                    /* past, not confirmed */
+.s-pin.active    { color: var(--g600); font-weight: 600; }  /* today */
+.s-pin.future    { color: var(--ink3); }
+.s-pin.empty     { color: var(--rule); }
+
+/* Pinned state — hero banner dims slightly when today's shot is marked */
+.hero-inner.pin-mode.pinned { background: var(--g700); }
 </style>
 </head>
 <body>
@@ -502,18 +507,29 @@ body {
 // ══════════════════════════════════════════════
 //  CONFIG — edit only this block
 // ══════════════════════════════════════════════
-const C = {
-  cycleNum:    5,
-  compound:    'Test C',
-  dose:        '0.6 mL',
-  mgPerPin:    '150 mg',
-  needle:      '23G 1″ IM',
-  site:        'Glute',
-  blastStart:  new Date(2026, 4, 18),   // May 18 2026
-  durationWks: 16,
-  washout:     new Date(2026, 9, 5),    // Oct 5 2026 (last shot)
-  pinDays:     [1, 4],                  // Mon=1, Thu=4
+const DEFAULTS = {
+  cycleNum:   5,
+  compound:   'Test C',
+  dose:       '0.6 mL',
+  mgPerPin:   '150 mg',
+  needle:     '23G 1″ IM',
+  site:       'Glute',
+  blastStart: new Date(2026, 4, 18),  // May 18 2026 — first shot
+  cycleEnd:   new Date(2026, 9, 5),   // Oct 5 2026  — last shot (20 wks exactly)
+  pinDays:    [1, 4],                 // Mon=1, Thu=4
 };
+// ══════════════════════════════════════════════
+// ARCHIVE: embed a past cycle by appending URL params:
+//   ?cycle=4&start=2025-11-10&end=2026-02-16
+// ══════════════════════════════════════════════
+const C = Object.assign({}, DEFAULTS);
+(function(){
+  const p=new URLSearchParams(window.location.search);
+  const pd=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);};
+  if(p.get('cycle')) C.cycleNum   = parseInt(p.get('cycle'));
+  if(p.get('start')) C.blastStart = pd(p.get('start'));
+  if(p.get('end'))   C.cycleEnd   = pd(p.get('end'));
+})();
 // ══════════════════════════════════════════════
 
 const DAYS  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -522,39 +538,35 @@ const MON   = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'
 const FMON  = ['January','February','March','April','May','June',
                'July','August','September','October','November','December'];
 
-const zd  = d => { const c = new Date(d); c.setHours(0,0,0,0); return c; };
-const now = () => zd(new Date());
-const dif = (a,b) => Math.round((zd(b)-zd(a))/86400000);
-const isP = d => C.pinDays.includes(zd(d).getDay());
-const isFr = () => { try{ return window.self!==window.top; }catch(e){ return true; } };
-const tKey = () => now().toISOString().slice(0,10);
+const zd   = d => { const c=new Date(d); c.setHours(0,0,0,0); return c; };
+const now  = () => zd(new Date());
+const dif  = (a,b) => Math.round((zd(b)-zd(a))/86400000);
+const isP  = d => C.pinDays.includes(zd(d).getDay());
+const isFr = () => { try{return window.self!==window.top;}catch(e){return true;} };
 
 function fmtS(d){ return `${MON[d.getMonth()]} ${d.getDate()}`; }
 function fmtM(d){ return `${DAYS[d.getDay()]} ${MON[d.getMonth()]} ${d.getDate()}`; }
 function fmtF(d){ return `${FDAYS[d.getDay()]}, ${FMON[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; }
+function isoFmt(d){ return zd(d).toISOString().slice(0,10); }
 
 function prevPin(t){
   const d=zd(t); d.setDate(d.getDate()-1);
   while(!isP(d)) d.setDate(d.getDate()-1);
   return zd(d);
 }
-
 function nextPin(t){
   const d=zd(t); d.setDate(d.getDate()+1);
   while(!isP(d)) d.setDate(d.getDate()+1);
   return zd(d);
 }
 
-function cycleWeek(d){
-  const days=dif(C.blastStart,d);
-  if(days<0) return 0;
-  return Math.min(C.durationWks, Math.floor(days/7)+1);
-}
-
-function cycleEnd(){
-  const d=new Date(C.blastStart);
-  d.setDate(d.getDate()+C.durationWks*7-1);
-  return zd(d);
+// Derived from explicit start/end dates — no hardcoded week count
+function totalDays()  { return dif(C.blastStart, C.cycleEnd); }          // 140
+function totalWeeks() { return Math.round(totalDays() / 7); }              // 20
+function cycleWeek(d) {
+  const days = dif(C.blastStart, d);
+  if(days < 0) return 0;
+  return Math.min(totalWeeks(), Math.floor(days/7)+1);
 }
 
 function rel(d){
@@ -562,36 +574,45 @@ function rel(d){
   if(df===0)  return 'today';
   if(df===1)  return 'tomorrow';
   if(df===-1) return 'yesterday';
-  return df<0 ? `${Math.abs(df)}d ago` : `in ${df}d`;
+  return df<0?`${Math.abs(df)}d ago`:`in ${df}d`;
 }
 
-// Mark-as-pinned
-function isPinned()   { return localStorage.getItem('p_'+tKey())==='1'; }
-function setPinned(v) { localStorage.setItem('p_'+tKey(), v?'1':'0'); }
+// ── Per-pin localStorage ─────────────────────────────────
+// Key: p_{cycleNum}_{YYYY-MM-DD}  avoids cross-cycle collision
+function pinKey(d)       { return `p_${C.cycleNum}_${isoFmt(d)}`; }
+function isPinnedDate(d) { return localStorage.getItem(pinKey(d))==='1'; }
+function setPinnedDate(d,v){ localStorage.setItem(pinKey(d),v?'1':'0'); }
 
 function applyMark(){
+  const pinned=isPinnedDate(now());
   const btn=document.getElementById('markBtn');
   const ico=document.getElementById('markIco');
   const txt=document.getElementById('markTxt');
-  if(isPinned()){
+  const box=document.getElementById('heroInner');
+  if(pinned){
     btn.classList.add('done'); ico.textContent='●'; txt.textContent='Pinned ✓';
+    box.classList.add('pinned');
   } else {
     btn.classList.remove('done'); ico.textContent='○'; txt.textContent='Mark as pinned';
+    box.classList.remove('pinned');
   }
 }
 
-function toggleMark(){ setPinned(!isPinned()); applyMark(); }
+function toggleMark(){
+  setPinnedDate(now(), !isPinnedDate(now()));
+  applyMark();
+  buildSched(now()); // re-render schedule to reflect new state
+}
 
-// Notifications
+// ── Notifications ────────────────────────────────────────
 function maybeNotify(){
-  if(!('Notification' in window)) return;
-  if(Notification.permission!=='granted') return;
+  if(!('Notification' in window)||Notification.permission!=='granted') return;
   const t=now();
   if(!isP(t)||dif(C.blastStart,t)<0) return;
-  const k='n_'+tKey();
+  const k=`n_${isoFmt(t)}`;
   if(localStorage.getItem(k)==='1') return;
   new Notification('💉 Pin Day',{
-    body:`${C.compound} · ${C.dose} · ${C.mgPerPin} · Cycle #${C.cycleNum}, Wk ${cycleWeek(t)}/${C.durationWks}`,
+    body:`${C.compound} · ${C.dose} · ${C.mgPerPin} · Cycle #${C.cycleNum}, Wk ${cycleWeek(t)}/${totalWeeks()}`,
     tag:'pin-day',
   });
   localStorage.setItem(k,'1');
@@ -607,17 +628,13 @@ function updateBell(){
 
 function onBell(e){
   e.preventDefault();
-  if(!('Notification' in window)) return;
-  if(Notification.permission==='granted') return;
-  if(isFr()){
-    window.open(window.location.href.split('?')[0]+'?notify=1','_blank');
-  } else {
-    Notification.requestPermission().then(p=>{ if(p==='granted') maybeNotify(); updateBell(); });
-  }
+  if(!('Notification' in window)||Notification.permission==='granted') return;
+  if(isFr()) window.open(window.location.href.split('?')[0]+'?notify=1','_blank');
+  else Notification.requestPermission().then(p=>{ if(p==='granted') maybeNotify(); updateBell(); });
 }
 
 function setupNotifs(){
-  if(!('Notification' in window)){ document.getElementById('bellBtn').style.display='none'; return; }
+  if(!('Notification' in window)){document.getElementById('bellBtn').style.display='none';return;}
   if(window.location.search.includes('notify')){
     Notification.requestPermission().then(p=>{ if(p==='granted') maybeNotify(); updateBell(); });
   }
@@ -626,22 +643,49 @@ function setupNotifs(){
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden) maybeNotify(); });
 }
 
-// Schedule
+// ── Schedule ─────────────────────────────────────────────
+// Loops week-by-week from blastStart; stops when Monday > cycleEnd.
+// Week 21 row = Mon Oct 5 only (Thu Oct 8 is past cycleEnd → shown as —).
+// Pin states:
+//   confirmed = explicitly marked (dark green, bold ●)
+//   done      = past, not marked  (faded ✓)
+//   active    = today             (pulsing ●)
+//   future    = upcoming          (muted)
 function buildSched(t){
   const el=document.getElementById('schedRows');
   el.innerHTML='';
+  const start=zd(C.blastStart), end=zd(C.cycleEnd);
   const wk=cycleWeek(t);
-  for(let w=1;w<=C.durationWks;w++){
-    const mon=new Date(C.blastStart); mon.setDate(mon.getDate()+(w-1)*7);
-    const thu=new Date(mon); thu.setDate(thu.getDate()+3);
-    const md=dif(t,zd(mon)), td=dif(t,zd(thu));
-    const cls=d=>d<0?'done':d===0?'active':'future';
-    const sym=d=>d<0?'✓ ':d===0?'● ':'';
+  const tw=totalWeeks();
+
+  for(let w=1; w<=tw+1; w++){
+    const mon=new Date(start); mon.setDate(start.getDate()+(w-1)*7);
+    const mz=zd(mon);
+    if(mz>end) break;
+
+    const thu=new Date(mz); thu.setDate(mz.getDate()+3);
+    const tz=zd(thu);
+    const thuValid=tz<=end;
+    const md=dif(t,mz), td=thuValid?dif(t,tz):null;
+
+    const cls=(diff,date)=>{
+      if(diff===null)  return 'future empty';
+      if(diff===0)     return 'active';
+      if(diff>0)       return 'future';
+      return isPinnedDate(date)?'confirmed':'done';
+    };
+    const sym=(diff,date)=>{
+      if(diff===null||diff>0) return '';
+      if(diff===0)  return '● ';
+      return isPinnedDate(date)?'● ':'✓ ';
+    };
+
     const row=document.createElement('div');
     row.className=`s-row${w===wk?' cur':''}`;
-    row.innerHTML=`<div class="s-wk">${w}</div>
-      <div class="s-pin ${cls(md)}">${sym(md)}${fmtS(zd(mon))}</div>
-      <div class="s-pin ${cls(td)}">${sym(td)}${fmtS(zd(thu))}</div>`;
+    row.innerHTML=`
+      <div class="s-wk">${w}</div>
+      <div class="s-pin ${cls(md,mz)}">${sym(md,mz)}${fmtS(mz)}</div>
+      <div class="s-pin ${thuValid?cls(td,tz):'future empty'}">${thuValid?sym(td,tz)+fmtS(tz):'—'}</div>`;
     el.appendChild(row);
   }
 }
@@ -651,68 +695,72 @@ function toggleSched(){
   document.getElementById('sArrow').classList.toggle('open');
 }
 
-// Render
+// ── Render ───────────────────────────────────────────────
 function render(){
-  const t       = now();
-  const start   = zd(C.blastStart);
-  const end     = cycleEnd();
-  const wk      = cycleWeek(t);
-  const pct     = Math.min(100,Math.max(0,Math.round((wk/C.durationWks)*100)));
-  const inCycle = t>=start && t<=end;
-  const pinDay  = isP(t) && inCycle;
+  const t      = now();
+  const start  = zd(C.blastStart);
+  const end    = zd(C.cycleEnd);
+  const tw     = totalWeeks();   // 20
+  const td     = totalDays();    // 140
+  const wk     = cycleWeek(t);
+  const elapsed= Math.max(0,dif(start,t));
+  const pct    = Math.min(100,Math.max(0,Math.round(elapsed/td*100)));
+  const inCycle= t>=start && t<=end;
+  const pinDay = isP(t) && inCycle;
 
   // Top strip
-  document.getElementById('topDate').textContent    = fmtF(t);
+  const archived = C.cycleNum !== DEFAULTS.cycleNum ||
+                   C.blastStart.getTime() !== DEFAULTS.blastStart.getTime();
+  document.getElementById('topDate').textContent = archived ? fmtF(C.blastStart)+' → '+fmtF(C.cycleEnd) : fmtF(t);
   document.getElementById('cycleBadge').textContent =
-    inCycle ? `Cycle #${C.cycleNum} · Wk ${wk}/${C.durationWks}` : `Cycle #${C.cycleNum}`;
+    inCycle ? `Cycle #${C.cycleNum} · Wk ${wk}/${tw}` : `Cycle #${C.cycleNum}`;
 
   // Hero
-  const box   = document.getElementById('heroInner');
-  const idle  = document.getElementById('heroIdle');
-  const pin   = document.getElementById('heroPin');
+  const box  = document.getElementById('heroInner');
+  const idle = document.getElementById('heroIdle');
+  const pin  = document.getElementById('heroPin');
 
-  if(pinDay){
+  if(archived && !inCycle){
+    // Archived view — show summary state
+    box.classList.remove('pin-mode','pinned');
+    pin.style.display='none'; idle.style.display='block';
+    document.getElementById('heroNum').textContent='✓';
+    document.getElementById('heroNum').style.fontSize='56px';
+    document.getElementById('heroUnit').textContent='';
+    document.getElementById('heroSub').textContent='Archived cycle';
+  } else if(pinDay){
     box.classList.add('pin-mode');
-    idle.style.display = 'none';
-    pin.style.display  = 'block';
-    document.getElementById('pdEye').textContent  = `Cycle #${C.cycleNum} · Week ${wk} of ${C.durationWks}`;
+    idle.style.display='none'; pin.style.display='block';
+    document.getElementById('pdEye').textContent  =`Cycle #${C.cycleNum} · Week ${wk} of ${tw}`;
     document.getElementById('pdDate').textContent = fmtF(t);
     applyMark();
   } else {
-    box.classList.remove('pin-mode');
-    pin.style.display  = 'none';
-    idle.style.display = 'block';
-    const numEl  = document.getElementById('heroNum');
-    const unitEl = document.getElementById('heroUnit');
-    const subEl  = document.getElementById('heroSub');
-
-    if(t < start){
-      numEl.textContent='—'; numEl.style.fontSize='';
-      unitEl.textContent='';
-      subEl.textContent=`Blast starts ${fmtM(start)}`;
-    } else if(t > end){
-      numEl.textContent='✓'; numEl.style.fontSize='56px';
-      unitEl.textContent='';
-      subEl.textContent='Cycle complete.';
+    box.classList.remove('pin-mode','pinned');
+    pin.style.display='none'; idle.style.display='block';
+    const nE=document.getElementById('heroNum');
+    const uE=document.getElementById('heroUnit');
+    const sE=document.getElementById('heroSub');
+    if(t<start){
+      nE.textContent='—';nE.style.fontSize='';uE.textContent='';
+      sE.textContent=`Blast starts ${fmtM(start)}`;
+    } else if(t>end){
+      nE.textContent='✓';nE.style.fontSize='56px';uE.textContent='';
+      sE.textContent='Cycle complete.';
     } else {
-      const np   = nextPin(t);
-      const days = dif(t,np);
+      const np=nextPin(t),days=dif(t,np);
       if(days===1){
-        numEl.textContent='Tomorrow'; numEl.style.fontSize='28px';
-        unitEl.textContent='';
-        subEl.textContent=fmtM(np)+' · '+C.site;
+        nE.textContent='Tomorrow';nE.style.fontSize='28px';uE.textContent='';
+        sE.textContent=fmtM(np)+' · '+C.site;
       } else {
-        numEl.textContent=days; numEl.style.fontSize='';
-        unitEl.textContent='days';
-        subEl.textContent=`until next pin\n${fmtM(np)} · ${C.site}`;
+        nE.textContent=days;nE.style.fontSize='';uE.textContent='days';
+        sE.textContent=`until next pin\n${fmtM(np)} · ${C.site}`;
       }
     }
   }
 
   // Data strip
-  const lp   = prevPin(t>=start ? t : new Date(start.getTime()+86400000));
-  const np2  = nextPin(t);
-
+  const lp =prevPin(t>=start?t:new Date(start.getTime()+86400000));
+  const np2=nextPin(t);
   if(lp>=start){
     document.getElementById('lastVal').textContent=fmtM(lp);
     document.getElementById('lastRel').textContent=rel(lp);
@@ -720,35 +768,27 @@ function render(){
     document.getElementById('lastVal').textContent='—';
     document.getElementById('lastRel').textContent=pinDay?'first pin':'';
   }
+  document.getElementById('nextVal').textContent=inCycle?fmtM(np2):'—';
+  document.getElementById('nextRel').textContent=inCycle?rel(np2):'';
+  document.getElementById('endVal').textContent =fmtM(end);
+  document.getElementById('endRel').textContent =rel(end);
 
-  document.getElementById('nextVal').textContent = inCycle ? fmtM(np2) : '—';
-  document.getElementById('nextRel').textContent = inCycle ? rel(np2)   : '';
-  document.getElementById('endVal').textContent  = fmtM(C.washout);
-  document.getElementById('endRel').textContent  = rel(C.washout);
-
-  // Compound line
-  document.getElementById('compoundLine').textContent =
+  // Compound
+  document.getElementById('compoundLine').textContent=
     `${C.compound} · ${C.dose} · ${C.mgPerPin} · ${C.needle} · ${C.site}`;
 
   // Progress
-  document.getElementById('progVal').textContent     = `Wk ${inCycle?wk:0} / ${C.durationWks} · ${pct}%`;
-  document.getElementById('barFill').style.width     = pct+'%';
+  document.getElementById('progVal').textContent=`Wk ${inCycle?wk:archived?tw:0} / ${tw} · ${archived?100:pct}%`;
+  document.getElementById('barFill').style.width=(archived?100:pct)+'%';
 
-  // Schedule
   buildSched(t);
-
-  // Notifications
-  setupNotifs();
+  if(!archived) setupNotifs();
 }
 
 render();
-
-// Auto-refresh at midnight
-const n=new Date();
-setTimeout(function tick(){
-  render();
-  setTimeout(tick,86400000);
-}, new Date(n.getFullYear(),n.getMonth(),n.getDate()+1)-n);
+const _n=new Date();
+setTimeout(function tick(){render();setTimeout(tick,86400000);},
+  new Date(_n.getFullYear(),_n.getMonth(),_n.getDate()+1)-_n);
 </script>
 </body>
 </html>
