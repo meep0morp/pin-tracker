@@ -4,22 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pin Tracker</title>
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,700;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,600;0,700;1,600&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
 
 :root {
-  --ink:  #0b1e15;
-  --ink3: #4d7262;
-  --ink4: #89a898;
-  --rule: #dde9e3;
-  --g900: #0d4a33;
-  --g700: #186044;
-  --g600: #22835f;
-  --g400: #5ab58e;
-  --g200: #bfe5d2;
-  --g100: #e4f6ee;
-  --g050: #f3fbf7;
+  --ink:  #081510;   /* near-black */
+  --ink2: #1a3828;   /* dark body text */
+  --ink3: #253f31;   /* was #4d7262 — much darker now */
+  --ink4: #3a5a4a;   /* was #89a898 — much darker now */
+  --rule: #c8dcd4;   /* slightly darker rules */
+  --g900: #08391f;
+  --g700: #115230;
+  --g600: #1a7044;
+  --g500: #248f5a;
+  --g400: #3daa72;
+  --g200: #9ed4b8;
+  --g100: #d5f0e2;
+  --g050: #edf9f3;
 }
 
 html, body {
@@ -27,6 +29,7 @@ html, body {
   background: #fff;
   color: var(--ink);
   font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;           /* base weight up from 400 */
   -webkit-font-smoothing: antialiased;
 }
 
@@ -59,6 +62,7 @@ body {
 
 .top-date {
   font-size: 12px;
+  font-weight: 500;
   letter-spacing: .06em;
   color: var(--ink3);
 }
@@ -139,7 +143,8 @@ body {
 }
 
 .hero-sub {
-  font-size: 11.5px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--ink3);
   letter-spacing: .02em;
   line-height: 1.5;
@@ -253,7 +258,8 @@ body {
 }
 
 .d-lbl {
-  font-size: 9.5px;
+  font-size: 10px;
+  font-weight: 600;
   letter-spacing: .12em;
   text-transform: uppercase;
   color: var(--ink4);
@@ -262,7 +268,7 @@ body {
 
 .d-val {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--ink);
   line-height: 1.2;
 }
@@ -271,6 +277,7 @@ body {
 
 .d-rel {
   font-size: 10.5px;
+  font-weight: 500;
   color: var(--ink4);
   margin-top: 2px;
   font-style: italic;
@@ -278,7 +285,8 @@ body {
 
 /* ── COMPOUND LINE ────────────────────────── */
 .compound-line {
-  font-size: 12px;
+  font-size: 12.5px;
+  font-weight: 500;
   color: var(--ink3);
   letter-spacing: .03em;
   padding: 11px 0;
@@ -298,15 +306,16 @@ body {
 }
 
 .prog-lbl {
-  font-size: 10.5px;
+  font-size: 11px;
+  font-weight: 600;
   letter-spacing: .09em;
   text-transform: uppercase;
   color: var(--ink4);
 }
 
 .prog-val {
-  font-size: 10.5px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   color: var(--g700);
 }
 
@@ -342,7 +351,8 @@ body {
 .sched-btn:hover .s-lbl { color: var(--g700); }
 
 .s-lbl {
-  font-size: 11px;
+  font-size: 11.5px;
+  font-weight: 600;
   letter-spacing: .09em;
   text-transform: uppercase;
   color: var(--ink4);
@@ -381,7 +391,8 @@ body {
 }
 
 .sched-head span {
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 600;
   letter-spacing: .1em;
   text-transform: uppercase;
   color: var(--ink4);
@@ -396,15 +407,49 @@ body {
 }
 
 .s-row.cur { background: var(--g050); }
-.s-wk      { font-size: 10px; color: var(--ink4); padding-top: 1px; }
-.s-pin     { font-size: 12px; }
-.s-pin.confirmed { color: var(--g700); font-weight: 600; }  /* explicitly marked */
-.s-pin.done      { color: var(--g300); }                    /* past, not confirmed */
-.s-pin.active    { color: var(--g600); font-weight: 600; }  /* today */
-.s-pin.future    { color: var(--ink3); }
-.s-pin.empty     { color: var(--rule); }
+.s-wk  { font-size: 11px; font-weight: 600; color: var(--ink4); padding-top: 1px; }
+.s-pin { font-size: 13px; font-weight: 500; }
 
-/* Pinned state — hero banner dims slightly when today's shot is marked */
+/* ● Confirmed — explicitly marked. Dark, bold, filled dot. */
+.s-pin.confirmed {
+  color: var(--g700);
+  font-weight: 700;
+}
+
+/* ✓ Done — past but not confirmed. Clearly readable but visually secondary. */
+.s-pin.done {
+  color: var(--ink4);
+  font-weight: 500;
+}
+
+/* ● Active — today's pin. */
+.s-pin.active {
+  color: var(--g600);
+  font-weight: 700;
+}
+
+/* Future — upcoming. Muted. */
+.s-pin.future {
+  color: #8aad9d;
+  font-weight: 500;
+}
+
+/* Empty — placeholder (Thu Oct 8 past cycle end). */
+.s-pin.empty { color: var(--rule); }
+
+/* Clickable past pins */
+.s-pin.done,
+.s-pin.confirmed {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 1px 3px;
+  margin: -1px -3px;
+  transition: background .12s;
+}
+.s-pin.done:hover     { background: var(--g100); color: var(--g700); }
+.s-pin.confirmed:hover{ background: var(--g100); }
+
+/* Pinned state — hero banner shifts shade when today's shot is marked */
 .hero-inner.pin-mode.pinned { background: var(--g700); }
 </style>
 </head>
@@ -682,10 +727,36 @@ function buildSched(t){
 
     const row=document.createElement('div');
     row.className=`s-row${w===wk?' cur':''}`;
-    row.innerHTML=`
-      <div class="s-wk">${w}</div>
-      <div class="s-pin ${cls(md,mz)}">${sym(md,mz)}${fmtS(mz)}</div>
-      <div class="s-pin ${thuValid?cls(td,tz):'future empty'}">${thuValid?sym(td,tz)+fmtS(tz):'—'}</div>`;
+
+    const wkEl=document.createElement('div');
+    wkEl.className='s-wk';
+    wkEl.textContent=w;
+    row.appendChild(wkEl);
+
+    // Build each pin cell; past pins are clickable to toggle confirmed
+    [[md,mz],[td,tz]].forEach(([diff,date],i)=>{
+      const cell=document.createElement('div');
+      const isValidDate = i===0 || thuValid;
+      if(!isValidDate){
+        cell.className='s-pin future empty';
+        cell.textContent='—';
+      } else {
+        cell.className=`s-pin ${cls(diff,date)}`;
+        cell.textContent=(sym(diff,date))+(diff===null?'':fmtS(date));
+        // Past pins: click to toggle confirmed
+        if(diff!==null && diff<0){
+          cell.title='Tap to toggle confirmed';
+          cell.onclick=()=>{
+            setPinnedDate(date, !isPinnedDate(date));
+            buildSched(t);
+            // If toggling today's date, also update hero button
+            if(dif(now(),date)===0) applyMark();
+          };
+        }
+      }
+      row.appendChild(cell);
+    });
+
     el.appendChild(row);
   }
 }
