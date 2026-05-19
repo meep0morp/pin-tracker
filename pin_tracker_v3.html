@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pin Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,700;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+
+:root {
+  --bg:    #ffffff;
+  --ink:   #0b1e15;
+  --ink2:  #2b4d3c;
+  --ink3:  #4d7262;
+  --ink4:  #89a898;
+  --rule:  #dde9e3;
+  --g900:  #0d4a33;
+  --g700:  #186044;
+  --g600:  #22835f;
+  --g400:  #5ab58e;
+  --g200:  #bfe5d2;
+  --g100:  #e4f6ee;
+  --g050:  #f3fbf7;
+}
+
+html, body {
+  height:100%;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'JetBrains Mono', monospace;
+  -webkit-font-smoothing:antialiased;
+}
+
+body {
+  display:flex;
+  justify-content:center;
+  padding:22px;
+}
+
+.wrap {
+  width:100%;
+  max-width:460px;
+  animation:up .4s cubic-bezier(.22,1,.36,1);
+}
+
+@keyframes up {
+  from { opacity:0; transform:translateY(8px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+/* ── TOP STRIP ─────────────────────────────── */
+.top-strip {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding-bottom:13px;
+  margin-bottom:24px;
+  border-bottom:1.5px solid var(--rule);
+}
+
+.top-date {
+  font-size:12px;
+  letter-spacing:.06em;
+  color:var(--ink3);
+}
+
+.top-right {
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.cycle-badge {
+  font-size:12px;
+  font-weight:600;
+  letter-spacing:.06em;
+  color:var(--g700);
+}
+
+/* Bell icon — shown in both standalone and iframe */
+.bell {
+  font-size:15px;
+  cursor:pointer;
+  color:var(--ink4);
+  transition:color .15s, opacity .15s;
+  text-decoration:none;
+  line-height:1;
+  user-select:none;
+}
+
+.bell:hover    { color:var(--g700); }
+.bell.granted  { opacity:.35; cursor:default; }
+
+/* ── IDLE HERO ──────────────────────────────── */
+.hero-idle { margin-bottom:24px; }
+
+.num-row {
+  display:flex;
+  align-items:baseline;
+  gap:13px;
+  line-height:1;
+}
+
+.hero-num {
+  font-family:'Lora', serif;
+  font-size:86px;
+  font-weight:700;
+  color:var(--g900);
+  letter-spacing:-.03em;
+  line-height:.9;
+}
+
+.hero-unit {
+  font-family:'Lora', serif;
+  font-size:26px;
+  font-weight:500;
+  font-style:italic;
+  color:var(--g600);
+  padding-bottom:5px;
+}
+
+.hero-sub {
+  font-size:13.5px;
+  color:var(--ink3);
+  letter-spacing:.03em;
+  margin-top:11px;
+  line-height:1.5;
+}
+
+/* ── PIN DAY HERO ───────────────────────────── */
+.hero-pin {
+  display:none;
+  background:var(--g900);
+  border-radius:14px;
+  padding:22px 26px 20px;
+  margin-bottom:24px;
+  overflow:hidden;
+  position:relative;
+}
+
+/* Decorative circles */
+.hero-pin::before,
+.hero-pin::after {
+  content:'';
+  position:absolute;
+  border-radius:50%;
+  pointer-events:none;
+}
+.hero-pin::before {
+  width:180px; height:180px;
+  top:-60px; right:-50px;
+  background:rgba(255,255,255,.04);
+}
+.hero-pin::after {
+  width:100px; height:100px;
+  bottom:-30px; left:30px;
+  background:rgba(255,255,255,.03);
+}
+
+.pd-eye {
+  font-size:11px;
+  letter-spacing:.13em;
+  text-transform:uppercase;
+  color:var(--g400);
+  margin-bottom:10px;
+  position:relative; z-index:1;
+}
+
+.pd-top {
+  display:flex;
+  align-items:center;
+  gap:13px;
+  margin-bottom:9px;
+  position:relative; z-index:1;
+}
+
+.pd-pulse {
+  width:13px; height:13px;
+  border-radius:50%;
+  background:var(--g400);
+  flex-shrink:0;
+  position:relative;
+}
+
+.pd-pulse::after {
+  content:'';
+  position:absolute;
+  inset:-4px;
+  border-radius:50%;
+  border:2px solid var(--g400);
+  animation:ring 1.8s ease-out infinite;
+}
+
+@keyframes ring {
+  0%   { transform:scale(1);   opacity:.8; }
+  100% { transform:scale(2.4); opacity:0;  }
+}
+
+.pd-title {
+  font-family:'Lora', serif;
+  font-size:52px;
+  font-weight:700;
+  color:#fff;
+  letter-spacing:-.025em;
+  line-height:.9;
+}
+
+.pd-date {
+  font-size:15px;
+  color:var(--g400);
+  letter-spacing:.04em;
+  margin-bottom:11px;
+  position:relative; z-index:1;
+}
+
+.pd-detail {
+  font-size:12.5px;
+  color:var(--g400);
+  letter-spacing:.04em;
+  margin-bottom:18px;
+  position:relative; z-index:1;
+}
+
+/* Mark-as-pinned button */
+.mark-btn {
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:9px 18px;
+  border-radius:9px;
+  border:1.5px solid rgba(255,255,255,.22);
+  background:rgba(255,255,255,.09);
+  color:#fff;
+  font-family:'JetBrains Mono', monospace;
+  font-size:12.5px;
+  letter-spacing:.05em;
+  cursor:pointer;
+  transition:background .15s, border-color .15s;
+  position:relative; z-index:1;
+}
+
+.mark-btn:hover {
+  background:rgba(255,255,255,.16);
+  border-color:rgba(255,255,255,.38);
+}
+
+.mark-btn.done {
+  background:rgba(255,255,255,.13);
+  border-color:rgba(255,255,255,.3);
+  color:rgba(255,255,255,.65);
+  cursor:default;
+}
+
+/* ── RULE ───────────────────────────────────── */
+.rule {
+  border:none;
+  border-top:1.5px solid var(--rule);
+  margin:0 0 20px;
+}
+
+/* ── CHIPS ──────────────────────────────────── */
+.chips {
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  margin-bottom:22px;
+}
+
+.chip {
+  font-size:12.5px;
+  font-weight:500;
+  letter-spacing:.035em;
+  padding:5px 12px;
+  border-radius:7px;
+}
+
+.chip.hi {
+  background:var(--g100);
+  color:var(--g700);
+  border:1px solid var(--g200);
+}
+
+.chip.lo {
+  background:transparent;
+  color:var(--ink3);
+  border:1px solid var(--rule);
+}
+
+/* ── PROGRESS ───────────────────────────────── */
+.prog-wrap { margin-bottom:22px; }
+
+.prog-meta {
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:8px;
+}
+
+.prog-meta .lbl {
+  font-size:11.5px;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+  color:var(--ink4);
+}
+
+.prog-meta .val {
+  font-size:11.5px;
+  font-weight:600;
+  color:var(--g700);
+}
+
+.bar-track {
+  height:5px;
+  background:var(--g200);
+  border-radius:3px;
+  overflow:hidden;
+}
+
+.bar-fill {
+  height:100%;
+  background:var(--g700);
+  border-radius:3px;
+  transition:width .7s cubic-bezier(.22,1,.36,1);
+}
+
+/* ── DATA STRIP ─────────────────────────────── */
+.data-strip {
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  border:1.5px solid var(--rule);
+  border-radius:12px;
+  overflow:hidden;
+}
+
+.d-cell {
+  padding:14px 15px;
+  border-right:1.5px solid var(--rule);
+}
+
+.d-cell:last-child { border-right:none; }
+
+.d-lbl {
+  font-size:10.5px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--ink4);
+  margin-bottom:6px;
+}
+
+.d-val {
+  font-size:14.5px;
+  font-weight:600;
+  color:var(--ink);
+  line-height:1.25;
+}
+
+.d-val.hi { color:var(--g700); }
+
+.d-rel {
+  font-size:11px;
+  color:var(--ink4);
+  margin-top:4px;
+  font-style:italic;
+}
+
+/* ── SCHEDULE ───────────────────────────────── */
+.sched-btn {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  width:100%;
+  padding:14px 0 0;
+  margin-top:15px;
+  border-top:1.5px solid var(--rule);
+  border-bottom:none; border-left:none; border-right:none;
+  background:none;
+  font-family:'JetBrains Mono', monospace;
+  cursor:pointer;
+}
+
+.sched-btn:hover .s-lbl { color:var(--g700); }
+
+.s-lbl {
+  font-size:11.5px;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+  color:var(--ink4);
+  transition:color .15s;
+}
+
+.s-arrow {
+  font-size:10px;
+  color:var(--ink4);
+  transition:transform .25s cubic-bezier(.22,1,.36,1);
+}
+.s-arrow.open { transform:rotate(180deg); }
+
+.sched-body {
+  max-height:0;
+  overflow:hidden;
+  transition:max-height .45s cubic-bezier(.22,1,.36,1);
+}
+.sched-body.open { max-height:1100px; }
+
+.sched-inner {
+  padding-top:15px;
+  border-top:1.5px solid var(--rule);
+  margin-top:14px;
+}
+
+.sched-head {
+  display:grid;
+  grid-template-columns:30px 1fr 1fr;
+  gap:4px;
+  padding:0 2px 8px;
+  border-bottom:1px solid var(--rule);
+  margin-bottom:4px;
+}
+
+.sched-head span {
+  font-size:10.5px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--ink4);
+}
+
+.s-row {
+  display:grid;
+  grid-template-columns:30px 1fr 1fr;
+  gap:4px;
+  padding:5px 2px;
+  border-radius:6px;
+}
+.s-row.cur { background:var(--g050); }
+
+.s-wk  { font-size:10.5px; color:var(--ink4); padding-top:1px; }
+.s-pin { font-size:12.5px; }
+.s-pin.done   { color:var(--g400); }
+.s-pin.active { color:var(--g700); font-weight:600; }
+.s-pin.future { color:var(--ink3); }
+
+/* ── FOOTER ─────────────────────────────────── */
+.footer {
+  margin-top:15px;
+  font-size:10px;
+  letter-spacing:.07em;
+  color:var(--rule);
+  text-align:center;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- TOP STRIP -->
+  <div class="top-strip">
+    <div id="topDate" class="top-date"></div>
+    <div class="top-right">
+      <div id="cycleBadge" class="cycle-badge"></div>
+      <a id="bellBtn" class="bell" href="#" onclick="onBell(event)" title="Enable pin reminders">🔔</a>
+    </div>
+  </div>
+
+  <!-- IDLE STATE -->
+  <div id="heroIdle" class="hero-idle">
+    <div class="num-row">
+      <div id="heroNum" class="hero-num">—</div>
+      <div id="heroUnit" class="hero-unit"></div>
+    </div>
+    <div id="heroSub" class="hero-sub"></div>
+  </div>
+
+  <!-- PIN DAY STATE -->
+  <div id="heroPin" class="hero-pin">
+    <div id="pdEye" class="pd-eye"></div>
+    <div class="pd-top">
+      <div class="pd-pulse"></div>
+      <div class="pd-title">Pin Day</div>
+    </div>
+    <div id="pdDate" class="pd-date"></div>
+    <div id="pdDetail" class="pd-detail"></div>
+    <button id="markBtn" class="mark-btn" onclick="toggleMark()">
+      <span id="markIco">○</span>
+      <span id="markTxt">Mark as pinned</span>
+    </button>
+  </div>
+
+  <hr class="rule">
+
+  <!-- COMPOUND CHIPS -->
+  <div id="chips" class="chips"></div>
+
+  <!-- PROGRESS BAR -->
+  <div class="prog-wrap">
+    <div class="prog-meta">
+      <span class="lbl">Cycle Progress</span>
+      <span id="progVal" class="val"></span>
+    </div>
+    <div class="bar-track">
+      <div id="barFill" class="bar-fill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- DATA STRIP -->
+  <div class="data-strip">
+    <div class="d-cell">
+      <div class="d-lbl">Last Pin</div>
+      <div id="lastVal" class="d-val">—</div>
+      <div id="lastRel" class="d-rel"></div>
+    </div>
+    <div class="d-cell">
+      <div class="d-lbl">Next Pin</div>
+      <div id="nextVal" class="d-val hi">—</div>
+      <div id="nextRel" class="d-rel"></div>
+    </div>
+    <div class="d-cell">
+      <div class="d-lbl">Cycle End</div>
+      <div id="endVal" class="d-val">—</div>
+      <div id="endRel" class="d-rel"></div>
+    </div>
+  </div>
+
+  <!-- SCHEDULE TOGGLE -->
+  <button class="sched-btn" onclick="toggleSched()">
+    <span class="s-lbl">Full E3.5D Schedule</span>
+    <span id="sArrow" class="s-arrow">▼</span>
+  </button>
+
+  <div id="schedBody" class="sched-body">
+    <div class="sched-inner">
+      <div class="sched-head">
+        <span>Wk</span><span>Monday</span><span>Thursday</span>
+      </div>
+      <div id="schedRows"></div>
+    </div>
+  </div>
+
+  <div class="footer">e3.5d · cycle #5 · auto-updates daily</div>
+
+</div><!-- /wrap -->
+
+<script>
+// ══════════════════════════════════════════════════════
+//  CONFIG — edit these values only
+// ══════════════════════════════════════════════════════
+const C = {
+  cycleNum:    5,
+  compound:    'Test C',
+  dose:        '0.6 mL',
+  mgPerPin:    '150 mg',
+  needle:      '23G 1″ IM',
+  site:        'Glute',                          // ← never quad
+  blastStart:  new Date(2026, 4, 18),            // ← May 18 2026 (Mon)
+  durationWks: 16,
+  washout:     new Date(2026, 9, 10),            // ← Oct 10 2026 (target end)
+  pinDays:     [1, 4],                           // ← Mon=1, Thu=4
+};
+// ══════════════════════════════════════════════════════
+
+const DAYS  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const FDAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MON   = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const FMON  = ['January','February','March','April','May','June',
+               'July','August','September','October','November','December'];
+
+const zd = d => { const c = new Date(d); c.setHours(0,0,0,0); return c; };
+const now = () => zd(new Date());
+const diff = (a,b) => Math.round((zd(b)-zd(a))/86400000);
+const isPin = d => C.pinDays.includes(zd(d).getDay());
+const inFrame = () => { try { return window.self!==window.top; } catch(e) { return true; } };
+const todayKey = () => now().toISOString().slice(0,10); // "2026-05-18"
+
+function fmtShort(d) { return `${MON[d.getMonth()]} ${d.getDate()}`; }
+function fmtMed(d)   { return `${DAYS[d.getDay()]} ${MON[d.getMonth()]} ${d.getDate()}`; }
+function fmtFull(d)  { return `${FDAYS[d.getDay()]}, ${FMON[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; }
+
+// Strictly previous pin day (before today)
+function prevPin(t) {
+  const d = zd(t); d.setDate(d.getDate()-1);
+  while (!isPin(d)) d.setDate(d.getDate()-1);
+  return zd(d);
+}
+
+// Strictly next pin day (after today)
+function nextPin(t) {
+  const d = zd(t); d.setDate(d.getDate()+1);
+  while (!isPin(d)) d.setDate(d.getDate()+1);
+  return zd(d);
+}
+
+function cycleWeek(d) {
+  const days = diff(C.blastStart, d);
+  if (days<0) return 0;
+  return Math.min(C.durationWks, Math.floor(days/7)+1);
+}
+
+function cycleEnd() {
+  const d = new Date(C.blastStart);
+  d.setDate(d.getDate() + C.durationWks*7 - 1);
+  return zd(d);
+}
+
+function relStr(d) {
+  const df = diff(now(), d);
+  if (df===0)  return 'today';
+  if (df===1)  return 'tomorrow';
+  if (df===-1) return 'yesterday';
+  return df<0 ? `${Math.abs(df)}d ago` : `in ${df}d`;
+}
+
+// ── Mark-as-pinned ───────────────────────────────────
+function isPinned()   { return localStorage.getItem('pinned_'+todayKey())==='1'; }
+function setPinned(v) { localStorage.setItem('pinned_'+todayKey(), v?'1':'0'); }
+
+function applyMarkState() {
+  const btn = document.getElementById('markBtn');
+  const ico = document.getElementById('markIco');
+  const txt = document.getElementById('markTxt');
+  if (isPinned()) {
+    btn.classList.add('done');
+    ico.textContent = '●';
+    txt.textContent = 'Pinned ✓';
+  } else {
+    btn.classList.remove('done');
+    ico.textContent = '○';
+    txt.textContent = 'Mark as pinned';
+  }
+}
+
+function toggleMark() {
+  if (isPinned()) {
+    setPinned(false);
+  } else {
+    setPinned(true);
+  }
+  applyMarkState();
+}
+
+// ── Notifications ────────────────────────────────────
+function maybeNotify() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+  const t = now();
+  if (!isPin(t)) return;
+  if (diff(C.blastStart, t) < 0) return;
+  const key = 'notif_'+todayKey();
+  if (localStorage.getItem(key)==='1') return;
+  const wk = cycleWeek(t);
+  new Notification('💉 Pin Day', {
+    body: `${C.compound} · ${C.dose} · ${C.mgPerPin} · Cycle #${C.cycleNum}, Wk ${wk}/${C.durationWks}`,
+    tag: 'pin-day',
+  });
+  localStorage.setItem(key, '1');
+}
+
+function setupNotifications() {
+  if (!('Notification' in window)) {
+    document.getElementById('bellBtn').style.display = 'none';
+    return;
+  }
+  // If landing with ?notify param, auto-request permission
+  if (window.location.search.includes('notify')) {
+    Notification.requestPermission().then(p => {
+      if (p==='granted') maybeNotify();
+      updateBell();
+    });
+  }
+  // If already granted, fire if pin day
+  if (Notification.permission === 'granted') {
+    maybeNotify();
+  }
+  updateBell();
+  // Refire on tab-focus (catches "left tab open overnight" case)
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) maybeNotify();
+  });
+}
+
+function updateBell() {
+  const btn = document.getElementById('bellBtn');
+  if (Notification.permission === 'granted') {
+    btn.classList.add('granted');
+    btn.title = 'Reminders enabled';
+    btn.onclick = e => e.preventDefault(); // no-op
+  }
+}
+
+function onBell(e) {
+  e.preventDefault();
+  if (Notification.permission === 'granted') return;
+  if (inFrame()) {
+    // Can't request permission inside iframe — open standalone tab
+    window.open(window.location.href.split('?')[0]+'?notify=1', '_blank');
+  } else {
+    Notification.requestPermission().then(p => {
+      if (p==='granted') maybeNotify();
+      updateBell();
+    });
+  }
+}
+
+// ── Build compound chips ─────────────────────────────
+function buildChips() {
+  const el = document.getElementById('chips');
+  el.innerHTML = '';
+  [
+    [C.compound, 'hi'],
+    [C.dose,     'lo'],
+    [C.mgPerPin, 'lo'],
+    [C.needle,   'lo'],
+    [C.site,     'lo'],
+  ].forEach(([t,c]) => {
+    const d = document.createElement('div');
+    d.className = `chip ${c}`;
+    d.textContent = t;
+    el.appendChild(d);
+  });
+}
+
+// ── Build schedule ───────────────────────────────────
+function buildSchedule(t) {
+  const el = document.getElementById('schedRows');
+  el.innerHTML = '';
+  const wk = cycleWeek(t);
+  for (let w=1; w<=C.durationWks; w++) {
+    const mon = new Date(C.blastStart); mon.setDate(mon.getDate()+(w-1)*7);
+    const thu = new Date(mon); thu.setDate(thu.getDate()+3);
+    const mDiff = diff(t, zd(mon));
+    const tDiff = diff(t, zd(thu));
+    const cls = d => d<0?'done':d===0?'active':'future';
+    const sym = d => d<0?'✓ ':d===0?'● ':'';
+    const row = document.createElement('div');
+    row.className = `s-row${w===wk?' cur':''}`;
+    row.innerHTML = `
+      <div class="s-wk">${w}</div>
+      <div class="s-pin ${cls(mDiff)}">${sym(mDiff)}${fmtShort(zd(mon))}</div>
+      <div class="s-pin ${cls(tDiff)}">${sym(tDiff)}${fmtShort(zd(thu))}</div>`;
+    el.appendChild(row);
+  }
+}
+
+function toggleSched() {
+  document.getElementById('schedBody').classList.toggle('open');
+  document.getElementById('sArrow').classList.toggle('open');
+}
+
+// ── Main render ──────────────────────────────────────
+function render() {
+  const t        = now();
+  const start    = zd(C.blastStart);
+  const end      = cycleEnd();
+  const wk       = cycleWeek(t);
+  const pct      = Math.min(100, Math.max(0, Math.round((wk/C.durationWks)*100)));
+  const inCycle  = t>=start && t<=end;
+  const pinToday = isPin(t) && inCycle;
+
+  // ── Top strip
+  document.getElementById('topDate').textContent = fmtFull(t);
+  document.getElementById('cycleBadge').textContent =
+    inCycle ? `Cycle #${C.cycleNum} · Wk ${wk}/${C.durationWks}` : `Cycle #${C.cycleNum}`;
+
+  // ── Hero
+  const idleEl = document.getElementById('heroIdle');
+  const pinEl  = document.getElementById('heroPin');
+
+  if (pinToday) {
+    idleEl.style.display = 'none';
+    pinEl.style.display  = 'block';
+    document.getElementById('pdEye').textContent    = `Cycle #${C.cycleNum} · Week ${wk} of ${C.durationWks}`;
+    document.getElementById('pdDate').textContent   = fmtFull(t);
+    document.getElementById('pdDetail').textContent = `${C.compound} · ${C.dose} · ${C.mgPerPin} · ${C.needle} · ${C.site}`;
+    applyMarkState();
+  } else {
+    pinEl.style.display  = 'none';
+    idleEl.style.display = 'block';
+    const numEl  = document.getElementById('heroNum');
+    const unitEl = document.getElementById('heroUnit');
+    const subEl  = document.getElementById('heroSub');
+
+    if (t < start) {
+      numEl.textContent      = '—';
+      numEl.style.fontSize   = '';
+      unitEl.textContent     = '';
+      subEl.textContent      = `Blast starts ${fmtMed(start)}`;
+    } else if (t > end) {
+      numEl.textContent      = '✓';
+      numEl.style.fontSize   = '72px';
+      unitEl.textContent     = '';
+      subEl.textContent      = 'Cycle complete.';
+    } else {
+      const np   = nextPin(t);
+      const days = diff(t, np);
+      if (days === 1) {
+        numEl.textContent    = 'Tomorrow';
+        numEl.style.fontSize = '48px';
+        unitEl.textContent   = '';
+        subEl.textContent    = `${fmtMed(np)} · ${C.site}`;
+      } else {
+        numEl.textContent    = days;
+        numEl.style.fontSize = '';
+        unitEl.textContent   = 'days';
+        subEl.textContent    = `until next injection · ${fmtMed(np)} · ${C.site}`;
+      }
+    }
+  }
+
+  // ── Chips
+  buildChips();
+
+  // ── Progress
+  document.getElementById('progVal').textContent = `Wk ${inCycle?wk:0} / ${C.durationWks} · ${pct}%`;
+  document.getElementById('barFill').style.width = pct + '%';
+
+  // ── Data strip
+  const lp  = prevPin(t>=start ? t : new Date(start.getTime()+86400000));
+  const np2 = nextPin(t);
+
+  // Last pin: only show if it's >= blastStart (no pre-cycle dates)
+  if (lp >= start) {
+    document.getElementById('lastVal').textContent = fmtMed(lp);
+    document.getElementById('lastRel').textContent = relStr(lp);
+  } else {
+    document.getElementById('lastVal').textContent = '—';
+    document.getElementById('lastRel').textContent = pinToday ? 'first pin' : '—';
+  }
+
+  document.getElementById('nextVal').textContent = inCycle ? fmtMed(np2) : '—';
+  document.getElementById('nextRel').textContent = inCycle ? relStr(np2) : '';
+
+  document.getElementById('endVal').textContent = fmtMed(C.washout);
+  document.getElementById('endRel').textContent = relStr(C.washout);
+
+  // ── Schedule
+  buildSchedule(t);
+
+  // ── Notifications
+  setupNotifications();
+}
+
+render();
+
+// Auto-refresh at midnight (handles leaving tab open overnight)
+const msToMidnight = new Date(
+  new Date().getFullYear(),
+  new Date().getMonth(),
+  new Date().getDate()+1
+) - new Date();
+
+setTimeout(function refresh() {
+  render();
+  setTimeout(refresh, 86400000);
+}, msToMidnight);
+</script>
+</body>
+</html>
